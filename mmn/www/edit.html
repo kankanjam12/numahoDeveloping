@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <title>得点編集画面</title>
+        <script src="js/jquery.js"></script>
+        <script src="js/jquery.cookie.js"></script>
+        <script src="js/common.js"></script>
+        <script src="js/gameDataUtil.js"></script>
+        <script src="js/cordova.js"></script>
+        <script>
+            var COUNT_ID = "countId";
+            var USER_ID_PREFIX = "user_";
+            var POINT_ID_PREFIX = "point_";
+            var IS_TOBASHI_ID_PREFIX = "isTobashi_";
+            // メンバ変数
+            var m_gameId;
+            var m_count;
+            var m_userDataList;
+
+            document.addEventListener("deviceready", init, false);
+            function init() {
+                m_gameId = COMMON.Event.getParamByKey("gameId");
+                m_count = COMMON.Event.getParamByKey("count");
+                createGameTable();
+            };
+            // メモリのデータから表示テーブルを作成
+            function createGameTable() {
+                m_userDataList = m_gameDateInfo.getCountUserData(m_gameId, m_count);
+                var table = $("#dataTable");
+                // user
+                // ユーザコンボボックス作成
+                var valueTextMap = {};
+                var userInfoMap = m_gameDateInfo.getUserInfoMap();
+                for(var userId in userInfoMap) {
+                    valueTextMap[userId] = userInfoMap[userId].name;
+                }
+                // 初期値選択
+                $("#" + COUNT_ID).text(m_count);
+                for(var k in IAttr.KAZE_MAP) {
+                    var kaze = IAttr.KAZE_MAP[k];
+                    for(var i in m_userDataList) {
+                        var getCountUserData = m_userDataList[i];
+                        var pointInfo = getCountUserData.pointInfoMap[m_count];
+                        if(GameDataUtil.isNotEmpty(pointInfo) && pointInfo.kazeEng === kaze.eng) {
+                            var userTr = $("<tr>");
+                            COMMON.TagUtil.addSpanTd(userTr, kaze.jap);
+                            // ユーザ追加
+                            var userId = getCountUserData.id;
+                            var selectElem = COMMON.TagUtil.Create.newSelectBox(valueTextMap, USER_ID_PREFIX + kaze.eng);
+                            selectElem.val(userId);
+                            COMMON.TagUtil.appendChildAtTr(userTr, selectElem);
+                            // 得点欄追加
+                            var showPoint = "";
+                            if(pointInfo) {
+                                showPoint = pointInfo.point;
+                            }
+                            COMMON.TagUtil.addNumberTextBoxTd(userTr, showPoint, POINT_ID_PREFIX + kaze.eng, "inputPoint");
+                            COMMON.TagUtil.addRadioBoxTd(userTr, kaze.eng, "radioTop", complement, (pointInfo.rank === 1), "disabled");
+                            COMMON.TagUtil.addRadioBoxTd(userTr, k, "radioTitya", null, (k == 0), "disabled");
+                            COMMON.TagUtil.addCheckBoxTd(userTr, IS_TOBASHI_ID_PREFIX + kaze.eng, "", "isTobashi", pointInfo.isTobashi, "disabled");
+                            table.append(userTr);
+                            break;
+                        }
+                    }
+                }
+            };
+
+            /* トップ得点補完 */
+            function complement() {
+                var radioTopObj = $("input[name='radioTop']:checked");
+                if(!radioTopObj.val()) {
+                    alert("ラジオボタンを選択してください。");
+                    return;
+                }
+                var topInputObj;
+                var pointInfoList = [];
+                $("input.inputPoint").each(function() {
+                    var inputPointObj = $(this);
+                    if(inputPointObj.attr("id") != POINT_ID_PREFIX + radioTopObj.val()) {
+                        pointInfoList.push(inputPointObj.val());
+                    } else {
+                        topInputObj = inputPointObj;
+                    }
+                });
+                var sum = GameDataUtil.getSum(pointInfoList);
+                if(GameDataUtil.isNumber(sum)) {
+                    topInputObj.val(0 - sum);
+                }
+            };
+
+            function save() {
+                var pointInfoList = [];
+                for(var i in m_userDataList) {
+                	var pointInfo = m_userDataList[i].pointInfoMap[m_count];
+                	var kazeEng = pointInfo["kazeEng"];
+                    var pointData = $("#" + (POINT_ID_PREFIX + kazeEng));
+                    pointInfo["point"] = Number(pointData.val().trim());
+                    pointInfoList.push(pointInfo);
+                }
+                if (validate(pointInfoList)) {
+                    var gameDataInfo = {};
+                    gameDataInfo["count"] = m_count;
+                    gameDataInfo["pointInfo"] = pointInfoList;
+                    m_gameDateInfo.savePointInfo(m_gameId, gameDataInfo);
+                    window.location = "gameDetail.html?gameId=" + m_gameId;
+                }
+            };
+
+            // 入力値チェック
+            function validate(pointInfoList) {
+                // ユーザ重複チェック
+                var userIdList = [];
+                for(var i in pointInfoList) {
+                    var userId = pointInfoList[i].userId;
+                    for(var j in userIdList) {
+                        if(userIdList[j] == userId) {
+                            alert("ユーザが重複しています。: " + m_gameDateInfo.getUserInfoMap()[userId].name);
+                            return false;
+                        }
+                    }
+                    userIdList[i] = userId;
+                }
+                // 合計値0チェック
+                var sum = m_gameDateInfo.getPointSum(pointInfoList);
+                if(!GameDataUtil.isNumber(sum)) { return false; }
+                if(sum != 0) {
+                    alert("得点の合計が０ではありません。: " + sum);
+                    return false;
+                }
+                return true;
+            };
+        </script>
+    </head>
+    <body>
+        <p id="page_title">得点編集</p>
+        <table border="2">
+            <thead>
+                <span id="countId"></span>
+                <span>回戦</span>
+            </thead>
+            <tbody id="dataTable">
+            	<tr>
+            		<th>家</th>
+            		<th>名前</th>
+            		<th>得点</th>
+            		<th>TOP</th>
+            		<th>起家</th>
+            		<th>飛</th>
+            	</tr>
+            </tbody>
+        </table>
+        <div>
+            <button onclick="complement();">補完</button>
+            <button onclick="save();">保存</button>
+            <a href="javascript:history.back()"><button>キャンセル</button></a>
+        </div>
+        <br/>
+        <div>
+            <a href="userList.html"><button>ユーザ一覧</button></a>
+        </div>
+    </body>
+</html>

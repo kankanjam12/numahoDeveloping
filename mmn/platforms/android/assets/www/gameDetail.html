@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <title>ゲーム詳細画面</title>
+        <script src="js/jquery.js"></script>
+        <script src="js/jquery.cookie.js"></script>
+        <script src="js/common.js"></script>
+        <script src="js/gameDataUtil.js"></script>
+        <script src="js/cordova.js"></script>
+        <script>
+            var GAME_DETAIL_KEY_LIST = ["field", "title", "date", "startTime", "endTime", "description", "rate", "uma", "chip", "oka", "tobisho", "hakoshita"];
+            var COPY_FOWARD_KEY_LIST = ["field", "rate", "uma", "chip", "oka", "tobisho", "hakoshita"];
+            // メンバ変数
+            var m_gameId;
+            var m_window = $(window);
+
+            document.addEventListener("deviceready", init, false);
+            function init() {
+                m_gameId = Number(COMMON.Event.getParamByKey("gameId"));
+                createDataTable();
+            };
+            
+            // メモリのデータから表示テーブルを作成
+            var createDataTable = function() {
+                var gameInfoMap = m_gameDateInfo.getGameInfoById(m_gameId);
+                // ゲーム情報をセット
+                setGameDetailTable(m_gameId, GAME_DETAIL_KEY_LIST, true);
+
+                var table = $("#dataTable");
+                table.css("text-align", "right");
+                var gameMaxCount = Number(m_gameDateInfo.getGameMaxCount(m_gameId));
+                if(gameMaxCount > 0) {
+                    // user
+                    var userTr = $("<tr>");
+                    userTr.attr("id", "dataTitleTr");
+                    userTr.css("text-align", "center");
+                    COMMON.TagUtil.addSpanTd(userTr, "");
+
+                    var userInfoMap = m_gameDateInfo.getUsedUserInfoMap(m_gameId);
+                    for(var userId in userInfoMap) {
+                        COMMON.TagUtil.addSpanTd(userTr, userInfoMap[userId].name);
+                    }
+                    table.append(userTr);
+
+                    // data
+                    for(var count = 1; count <= gameMaxCount; count++) {
+                        var pointTr = $("<tr>");
+                        pointTr.attr("id", "dataTr_" + count);
+                        COMMON.TagUtil.addSpanTd(pointTr, count);
+                        for(var userId in userInfoMap) {
+                            var pointInfo = m_gameDateInfo.getGameUserCountData(m_gameId, userId, count);
+                            var userTd = COMMON.TagUtil.addSpanTd(pointTr, "");
+                            if(pointInfo) {
+                                userTd.text(pointInfo.point);
+                            } else {
+                                userTd.css("background-color", "#808080");
+                            }
+                        }
+                        // 編集ボタンを追加
+                        var editButtonId = COMMON.Event.EDIT_BUTTON_ID_PREFIX + count;
+                        var editButtonText = "編集";
+                        var editButton = COMMON.TagUtil.Create.newButton(editButtonId, editButtonText, function(){
+                            var id = $(this).attr('id');
+                            id = id.replace(COMMON.Event.EDIT_BUTTON_ID_PREFIX, "");
+                            var params = [];
+                            params.push("gameId=" + m_gameId);
+                            params.push("count=" + id);
+                            COMMON.Event.moveEditPage("editScore.html", params);
+                        });
+                        COMMON.TagUtil.appendChildAtTr(pointTr, editButton);
+                        // 削除ボタンを追加
+                        var deleteButtonId = COMMON.Event.DELETE_BUTTON_ID_PREFIX + count;
+                        var deleteButton = COMMON.TagUtil.Create.newButton(deleteButtonId, "削除", function(){
+                            var idCount = $(this).attr('id');
+                            idCount = idCount.replace(COMMON.Event.DELETE_BUTTON_ID_PREFIX, "");
+                            m_gameDateInfo.deletePointInfo(m_gameId, idCount);
+                            location.reload();
+                        });
+                        COMMON.TagUtil.appendChildAtTr(pointTr, deleteButton);
+                        table.append(pointTr);
+                    }
+
+                    // 合計エリア
+                    var sumTr = $("<tr>");
+                    COMMON.TagUtil.addSpanTd(sumTr, "計");
+                    for(var userId in userInfoMap) {
+                        var sum = m_gameDateInfo.getPointSumByGameUser(m_gameId, userId);
+                        var sumSpan = COMMON.TagUtil.addSpanTd(sumTr, sum);
+                        if(sum < 0) {
+                            sumSpan.addClass("minusPoint");
+                        }
+                    }
+                    table.append(sumTr);
+
+                    // チップエリア
+                    var chipTr = $("<tr>");
+                    chipTr.attr("id", "chip_tr");
+                    COMMON.TagUtil.addSpanTd(chipTr, "C");
+                    for(var userId in userInfoMap) {
+						var chipValue = m_gameDateInfo.getChipByGameUser(m_gameId, userId);
+                        var chipSpan = COMMON.TagUtil.addSpanTd(chipTr, chipValue);
+                        if(chipValue < 0) {
+                        	chipSpan.addClass("minusPoint");
+                        }
+					}
+                    // 編集ボタンを追加
+                    var chipEditButton = COMMON.TagUtil.Create.newButton("chipEdit", "編集", function(){
+                        var params = [];
+                        params.push("gameId=" + m_gameId);
+                        COMMON.Event.moveEditPage("editChip.html", params);
+                    });
+                    COMMON.TagUtil.appendChildAtTr(chipTr, chipEditButton);
+                    table.append(chipTr);
+					// chipがレートなしなら、隠す
+                    if ($("#chip").val() === "0") {
+                    	chipTr.hide();
+    				}
+
+                    // レートエリア
+                    var rateTr = $("<tr>");
+                    rateTr.attr("id", "rate_tr");
+                    convertRate(rateTr);
+                    table.append(rateTr);
+                    
+                    // user (スクロールできないので暫定的に)
+                    var userFooterTr = $("<tr>");
+                    userFooterTr.css("text-align", "center");
+                    COMMON.TagUtil.addSpanTd(userFooterTr, "");
+
+                    var userInfoMap = m_gameDateInfo.getUsedUserInfoMap(m_gameId);
+                    for(var userId in userInfoMap) {
+                        COMMON.TagUtil.addSpanTd(userFooterTr, userInfoMap[userId].name);
+                    }
+                    table.append(userFooterTr);
+                } else {
+                    var tempTr = $("<tr>");
+                    tempTr.css("text-align", "center");
+                    COMMON.TagUtil.addSpanTd(tempTr, "得点が登録されていません。");
+                    table.append(tempTr);
+                }
+
+                // 追加なので、＋１する
+                var addButtonId = COMMON.Event.BUTTON_ID_PREFIX + (gameMaxCount + 1);
+                var addButton = COMMON.TagUtil.Create.newButton(addButtonId, "追加", function(){
+                    var id = $(this).attr('id');
+                    id = id.replace(COMMON.Event.BUTTON_ID_PREFIX, "");
+                    var params = [];
+                    params.push("gameId=" + m_gameId);
+                    params.push("count=" + id);
+                    COMMON.Event.moveEditPage("editScore.html", params);
+                });
+                var buttonArea = $("#buttonArea #firstDiv");
+                buttonArea.prepend(addButton);
+            };
+
+            /* ゲーム情報追加 */
+            var setGameDetailTable = function(gameId, fieldList, rewriteFlg) {
+                var gameInfoMap = m_gameDateInfo.getGameInfoById(gameId);
+                if(gameInfoMap != undefined) {
+                    for(var i in fieldList) {
+                        var key = fieldList[i];
+                        if(rewriteFlg === false) {
+                            if(!GameDataUtil.isNotEmpty($("#" + key).val())) {
+                                $("#" + key).val(gameInfoMap[key]);
+                            }
+                        } else {
+                            $("#" + key).val(gameInfoMap[key]);
+                        }
+                    }
+                }
+            };
+
+            /* ボタン呼び出し */
+            var copyForward = function(rewrite) {
+                if(m_gameId > 1) {
+                    var fowardId = m_gameId - 1;
+                    setGameDetailTable(fowardId, COPY_FOWARD_KEY_LIST, rewrite);
+                }
+            };
+            var changeRate = function() {
+                var rateTr = $("#rate_tr");
+                rateTr.empty();
+                convertRate(rateTr);
+            };
+            var changeChip = function() {
+                var chipTr = $("#chip_tr");
+				chipTr.show();
+                if ($("#chip").val() === "0") {
+                	chipTr.hide();
+				}
+                changeRate();
+            };
+            var saveGameDetail = function() {
+                var newGameDetailInfo = m_gameDateInfo.getGameInfoById(m_gameId);
+                for(var i in GAME_DETAIL_KEY_LIST) {
+                    var key = GAME_DETAIL_KEY_LIST[i];
+                    newGameDetailInfo[key] = $("#" + key).val();
+                }
+                m_gameDateInfo.addGameDetailInfo(newGameDetailInfo);
+                location.reload();
+            };
+
+            var convertRate = function(rateTr) {
+            	var rateValue = $("#rate").val();
+                if(rateValue !== "0") {
+                    COMMON.TagUtil.addSpanTd(rateTr, "金");
+                    var userInfoMap = m_gameDateInfo.getUsedUserInfoMap(m_gameId);
+                    for(var userId in userInfoMap) {
+                        var sum = m_gameDateInfo.getPointSumByGameUser(m_gameId, userId);
+                        var rate = sum * rateValue;
+                        rate = rate + convertChip(userId);
+                        var rateSpan = COMMON.TagUtil.addSpanTd(rateTr, rate);
+                        if(rate < 0) {
+                        	rateSpan.addClass("minusPoint");
+                        }
+                    }
+                    rateTr.show();
+                } else {
+                    rateTr.hide();
+                }
+            };
+            var convertChip = function(userId) {
+				var chipValue = m_gameDateInfo.getChipByGameUser(m_gameId, userId);
+               	var chipSum = chipValue * $("#chip").val();
+                return chipSum;
+            };
+        </script>
+    </head>
+    <body>
+        <p id="page_title">ゲーム詳細</p>
+        <table id="gameInfo">
+            <thead></thead>
+            <tbody id="gameInfoTable">
+                <tr>
+                    <td>タイトル</td>
+                    <td><input type="text" id="title"></td>
+                </tr><tr>
+                    <td>場所</td>
+                    <td><input type="text" id="field"></td>
+                </tr><tr>
+                    <td>概要</td>
+                    <td><input type="text" id="description"></td>
+                </tr><tr>
+                    <td>実施日</td>
+                    <td><input type="date" id="date"></td>
+                </tr><tr>
+                    <td>時間</td>
+                    <td><input type="time" id="startTime" step="900"><span> ~ </span><input type="time" id="endTime" step="900"></td>
+                </tr><tr>
+                    <td>レート</td>
+                    <td>
+                        <select id="rate" onchange="changeRate();">
+                            <option value="100">点１０</option>
+                            <option value="50">点５</option>
+                            <option value="30">点３</option>
+                            <option value="20">点２</option>
+                            <option value="10">点１</option>
+                            <option value="0">ノーレート</option>
+                        </select>
+                    </td>
+                    <td>チップ</td>
+                    <td>
+                        <select id="chip" onchange="changeChip();">
+                            <option value="0">なし</option>
+                            <option value="300">300</option>
+                            <option value="200">200</option>
+                            <option value="100">100</option>
+                            <option value="500">500</option>
+                        </select>
+                    </td>
+                </tr><tr>
+                    <td>ウマ</td>
+                    <td>
+                        <select id="uma">
+                            <option value="10-30">10-30</option>
+                            <option value="10-20">10-20</option>
+                        </select>
+                    </td>
+                    <td>オカ</td>
+                    <td>
+                        <select id="oka">
+                            <option value="30000">30000</option>
+                            <option value="35000">35000</option>
+                            <option value="25000">25000</option>
+                        </select>
+                    </td>
+                  </tr><tr>
+                    <td>飛び賞</td>
+                    <td>
+                        <select id="tobisho">
+                            <option value="10">10</option>
+                            <option value="0">なし</option>
+                        </select>
+                    </td>
+                    <td>箱下清算</td>
+                    <td>
+	                    <select id="hakoshita">
+	                        <option value="false">なし</option>
+	                        <option value="true">あり</option>
+	                    </select>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <section id="dataArea">
+            <table border="2">
+                <thead>
+                    <!--
+                     <div>
+                     <input type="radio" id="scoreTableRadio" name="showTable">
+                     <input type="radio" id="rankTableRadio" name="showTable">
+                     </div>
+                     -->
+                </thead>
+                <tbody id="dataTable">
+                </tbody>
+            </table>
+        </section>
+        <section id="buttonArea">
+            <div id="firstDiv">
+                <button id="saveButton" onclick="saveGameDetail()">保存</button>
+                <a href="groupMain.html"><button>戻る</button></a>
+            </div>
+            <div id="secondDiv">
+                <button id="copyButton" onclick="copyForward(true)">コピー(前回)</button>
+                <a href="userList.html"><button>ユーザ一覧</button></a>
+            </div>
+        </section>
+    </body>
+</html>

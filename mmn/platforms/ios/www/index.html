@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <title>グループ選択画面</title>
+        <script src="js/jquery.js"></script>
+        <script src="js/jquery.cookie.js"></script>
+        <script src="js/common.js"></script>
+        <script src="js/gameDataUtil.js"></script>
+        <script src="js/tableController.js"></script>
+        <script src="js/cordova.js"></script>
+        <script>
+            document.addEventListener("deviceready", init, false);
+            var m_jsonData;
+            var GROUP_ID_KEY = IAttr.LOCAL_STRAGE_KEY.GROUP_ID_LIST;
+
+            function init() {
+                var settingMap = {};
+                settingMap[TCAttr.SETTING.PARENT_OBJ] = $("#dataTable");	// 親OBJ
+                settingMap[TCAttr.SETTING.PRIMARY_KEY] = "groupId";	// 主key
+                settingMap[TCAttr.SETTING.MAX_LENGTH] = 10;	// 最大表示数
+                // テーブル表示情報設定
+                settingMap[TCAttr.SETTING.ADD_KEY_LIST] = ["groupId"];
+                settingMap[TCAttr.SETTING.TITLE_LIST] = ["グループ名"];
+                // ボタン関数設定
+                var buttonFuncMap = {};
+                buttonFuncMap[TCAttr.BUTTON.EDIT] = function(id) {
+                    $.cookie(IAttr.JSON_KEY.CURRENT_GROUP, IAttr.PREFIX.MMN + id);
+                    location.href = "groupMain.html";
+                };
+                buttonFuncMap[TCAttr.BUTTON.DEL] = function(id) {
+                    localStorage.removeItem(IAttr.PREFIX.MMN + id);
+                    var groupIdList = GameDataUtil.locStorage.getJson(GROUP_ID_KEY);
+                    for(var i in groupIdList) {
+                        var groupId = groupIdList[i];
+                        if(groupId == id) {
+                            groupIdList.splice(i, 1);
+                            GameDataUtil.locStorage.saveJson(GROUP_ID_KEY, groupIdList);
+                            break;
+                        }
+                    }
+                    $.removeCookie(IAttr.JSON_KEY.CURRENT_GROUP);
+                    location.reload();
+                };
+                settingMap[TCAttr.SETTING.BUTTON_FUNC] = buttonFuncMap;
+
+                $.removeCookie(IAttr.JSON_KEY.CURRENT_GROUP);
+                var groupIdMapList = [];
+                var groupIdList = GameDataUtil.locStorage.getJson(GROUP_ID_KEY);
+                for(var i in groupIdList) {
+                    var groupId = groupIdList[i];
+                    var map = {};
+                    map["groupId"] = groupId;
+                    groupIdMapList.push(map);
+                }
+                var controller = new TableController(groupIdMapList, settingMap);
+                controller.createDataTable(0);
+
+                // 移動ボタンを追加
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.TOP));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.BACK));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.PAGE));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.NEXT));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.LAST));
+            };
+
+            function addGroup() {
+                if(!$("#addGroup").val()) {
+                    alert("グループ名を入力してください");
+                    return false;
+                }
+                var groupId = $("#addGroup").val();
+                var groupIdList = GameDataUtil.locStorage.getJson(GROUP_ID_KEY);
+                if(groupIdList) {
+                    for(var i in groupIdList) {
+                        var id = groupIdList[i];
+                        if(id == groupId) {
+                        	alert("既に同じグループ名が存在しています：" + groupId);
+							return;
+                        }
+                    }
+                    groupIdList.push(groupId);
+                } else {
+                    groupIdList = [];
+                    groupIdList[0] = groupId;
+                }
+                GameDataUtil.locStorage.saveJson(GROUP_ID_KEY, groupIdList);
+                location.reload();
+            }
+        </script>
+    </head>
+    <body>
+        <p id="page_title">グループ選択</p>
+        <section id="dataTableSection">
+	        <div id="dataTable"></div>
+	        <div id="moveButton"></div>
+	    </section>
+	    <br>
+        <div id="addGroupArea">
+            追加したいグループ名を入力してください。<br>
+            <input id="addGroup" type="text">
+            <button id="addGroupButton" onclick="addGroup()">追加</button>
+        </div>
+        <div id="buttonArea">
+        </div>
+		<a href="addSheet.html" id="button-1" data-rel="external" class="ui-btn ui-corner-all">シート追加</a>
+
+        <a href="manager.html"><button>管理画面</button></a>
+        <a href="todo/index.html"><button>TODO画面</button></a>
+
+    </body>
+</html>

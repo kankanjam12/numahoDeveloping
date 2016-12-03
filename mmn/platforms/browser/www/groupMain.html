@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <title>グループ情報画面</title>
+        <script src="js/jquery.js"></script>
+        <script src="js/jquery.cookie.js"></script>
+        <script src="js/common.js"></script>
+        <script src="js/gameDataUtil.js"></script>
+        <script src="js/tableController.js"></script>
+        <script src="js/cordova.js"></script>
+        <script>
+            document.addEventListener("deviceready", init, false);
+            function init() {
+                var settingMap = {};
+                settingMap[TCAttr.SETTING.PARENT_OBJ] = $("#dataTable");	// 親OBJ
+                settingMap[TCAttr.SETTING.PRIMARY_KEY] = "id";	// 主key
+                settingMap[TCAttr.SETTING.MAX_LENGTH] = 10;	// 最大表示数
+                // テーブル表示情報設定
+                settingMap[TCAttr.SETTING.ADD_KEY_LIST] = ["title", "date"];
+                settingMap[TCAttr.SETTING.TITLE_LIST] = ["タイトル", "開催日"];
+                // ボタン関数設定
+                var buttonFuncMap = {};
+                buttonFuncMap[TCAttr.BUTTON.ADD] = function(id) {
+                    var newGameDetailInfo = new GameDetailInfo(id, id + "回目","", "", "", "", "50", "", "10-20", "0", "30000", {}, "10", "false");
+                    m_gameDateInfo.addGameDetailInfo(newGameDetailInfo);
+                    location.href = "gameDetail.html?gameId=" + id;
+                };
+                buttonFuncMap[TCAttr.BUTTON.EDIT] = function(id) {
+                    location.href = "gameDetail.html?gameId=" + id;
+                };
+                buttonFuncMap[TCAttr.BUTTON.DEL] = function(id) {
+                    m_gameDateInfo.deleteGameDetailInfo(id);
+                    location.reload();
+                };
+                settingMap[TCAttr.SETTING.BUTTON_FUNC] = buttonFuncMap;
+
+            	var gameInfoMapList = COMMON.Map.convertMapToList(m_gameDateInfo.getGameInfoMap(), "desc");
+                var controller = new TableController(gameInfoMapList, settingMap);
+                controller.createDataTable(0);
+
+                // 移動ボタンを追加
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.TOP));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.BACK));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.PAGE));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.NEXT));
+                $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.LAST));
+                // 追加ボタンを追加
+                var addButtonObj = controller.getButtonByKey(TCAttr.BUTTON.ADD);
+                $("#buttonArea").prepend(addButtonObj);
+            };
+        </script>
+    </head>
+    <body>
+        <p id=page_title>グループ情報</p>
+        <section id="dataTableSection">
+	        <div id="dataTable"></div>
+	        <div id="moveButton"></div>
+	    </section>
+	    <br>
+        <div id="buttonArea">
+            <a href="total.html"><button>集計</button></a>
+            <a href="userList.html"><button>ユーザ一覧</button></a>
+        </div>
+
+        <a href="index.html"><button>TOPへ戻る</button></a>
+    </body>
+</html>

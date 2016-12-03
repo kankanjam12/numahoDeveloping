@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+    <head>
+	    <meta charset="utf-8" />
+	    <meta name="format-detection" content="telephone=no" />
+	    <meta name="msapplication-tap-highlight" content="no" />
+	    <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width" />
+        <title>グループ選択画面</title>
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <link rel="stylesheet" type="text/css" href="spec/lib/jquery.mobile-1.4.5/jquery.mobile-1.4.5.min.css">
+	    <script type="application/javascript" src="spec/lib/jquery.mobile-1.4.5/jquery-3.1.1.min.js"></script>
+	    <script src="spec/lib/jquery.mobile-1.4.5/jquery.mobile-1.4.5.min.js"></script>
+        <script src="js/jquery.cookie.js"></script>
+        <script src="js/common.js"></script>
+        <script src="js/tableController.js"></script>
+        <script>
+	        document.addEventListener("deviceready", init, false);
+	        function init() {
+	        	createTable();
+	        };
+        
+            // メモリのデータから表示テーブルを作成
+            function createTable() {
+	            var settingMap = {};
+	            settingMap[TCAttr.SETTING.PARENT_OBJ] = $("#dataTable");	// 親OBJ
+	            settingMap[TCAttr.SETTING.PRIMARY_KEY] = "item";	// 主key
+	            settingMap[TCAttr.SETTING.MAX_LENGTH] = 20;	// 最大表示数
+	            // テーブル表示情報設定
+	            settingMap[TCAttr.SETTING.ADD_KEY_LIST] = ["addDate", "item", "price", "category"];
+	            settingMap[TCAttr.SETTING.TITLE_LIST] = ["日付", "項目", "値段", "カテゴリ"];
+	            // ボタン関数設定
+	            var buttonFuncMap = {};
+	            buttonFuncMap[TCAttr.BUTTON.ADD] = function(id) {
+                    var param = "userId=" + id;
+                    COMMON.Event.moveEditPage("addUser.html", [param]);
+	            };
+	            buttonFuncMap[TCAttr.BUTTON.EDIT] = function(id) {
+                    var param = "userId=" + id;
+                    COMMON.Event.moveEditPage("addUser.html", [param]);
+	            };
+	            settingMap[TCAttr.SETTING.BUTTON_FUNC] = buttonFuncMap;
+
+	        	var jsonData = JSON.parse(localStorage["kakei"]);
+	            var kakeiInfoList = [];
+	            for(var i in jsonData) {
+	                var kakeiData = jsonData[i];
+	                var kakeiInfo = new KakeiInfo(kakeiData.addDate, kakeiData.item, kakeiData.price, kakeiData.category);
+	                kakeiInfoList.push(kakeiInfo);
+	            }
+	            
+	            var controller = new TableController(kakeiInfoList, settingMap);
+	            controller.createDataTable(0);
+
+	            // 移動ボタンを追加
+	            $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.TOP));
+	            $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.BACK));
+	            $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.PAGE));
+	            $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.NEXT));
+	            $("#moveButton").append(controller.getButtonByKey(TCAttr.BUTTON.LAST));
+	            // 追加ボタンを追加
+	            var addButtonObj = controller.getButtonByKey(TCAttr.BUTTON.ADD);
+	            //$("#buttonArea").prepend(addButtonObj);
+	        };
+	        
+			/**
+			 * 家計情報
+			 * id ユーザID
+			 * name ユーザ名
+			 * index 表示順
+			 * pointInfoMap 得点情報マップ
+			*/
+			function KakeiInfo(addDate, item, price, category){
+			    this.addDate = addDate;
+			    this.item = item;
+			    this.price = price;
+			    this.category = category;
+			    /* JSONData */
+			    this.getJSONData = function() {
+			        var JSONData = {};
+			        JSONData["addDate"] = this.addDate;
+			        JSONData["item"] = this.item;
+			        JSONData["price"] = this.price;
+			        JSONData["category"] = this.category;
+			        return JSONData;
+			    };
+			};
+        </script>
+    </head>
+    <body>
+        <p id="page_title">ユーザ一覧</p>
+        <section id="dataTableSection">
+	        <div id="dataTable"></div>
+	        <div id="moveButton"></div>
+	    </section>
+	    <br>
+        <div id="buttonArea">
+        	<!-- <a id="addButton" class="ui-btn ui-icon-forward ui-btn-icon-left ui-corner-all ui-btn-b"  style="width:100px" onClick="createTable()" >更新</a> -->
+        	<a href="addSheet.html" id="addButton" class="ui-btn ui-icon-forward ui-btn-icon-left ui-corner-all ui-btn-b"  style="width:100px">追加</a>
+			<a href="javascript:history.back()" id="button-1" data-rel="back" class="ui-btn ui-icon-arrow-l ui-btn-icon-left ui-corner-all ui-btn-b" style="width:100px">戻る</a>
+        </div>
+        
+	    <script type="text/javascript" src="cordova.js"></script>
+	    <script type="text/javascript" src="js/index.js"></script>
+	    <script type="text/javascript">
+	        app.initialize();
+	    </script>
+    </body>
+</html>
